@@ -1,0 +1,90 @@
+name: Gold18 Dense Chronos XGBoost Test
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  chronos:
+    name: Chronos-2 CPU benchmark
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install official Chronos-2 stack
+        run: |
+          python -m pip install -U pip
+          python -m pip install --index-url https://download.pytorch.org/whl/cpu torch
+          python -m pip install chronos-forecasting pandas pyarrow requests
+      - name: Run Chronos-2
+        continue-on-error: true
+        env:
+          HF_HOME: ${{ runner.temp }}/hf
+          OMP_NUM_THREADS: '4'
+          MKL_NUM_THREADS: '4'
+        run: python run_model.py --model chronos
+      - name: Upload Chronos result
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: result-chronos
+          path: outputs/chronos
+          retention-days: 2
+
+  xgboost:
+    name: XGBoost quantile benchmark
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install XGBoost stack
+        run: |
+          python -m pip install -U pip
+          python -m pip install 'xgboost>=3.2,<4' numpy pandas requests
+      - name: Run XGBoost
+        continue-on-error: true
+        env:
+          OMP_NUM_THREADS: '4'
+        run: python run_model.py --model xgboost
+      - name: Upload XGBoost result
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: result-xgboost
+          path: outputs/xgboost
+          retention-days: 2
+
+  aggregate:
+    name: Aggregate and rank models
+    needs: [chronos, xgboost]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: python -m pip install numpy pandas requests
+      - name: Download model artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: result-*
+          path: downloaded_artifacts
+      - name: Build final report
+        run: python aggregate_dense.py
+      - name: Upload final benchmark report
+        uses: actions/upload-artifact@v4
+        with:
+          name: gold18-dense-final-results
+          path: |
+            final_results
+            gold18_frontier_results.zip
+          retention-days: 5

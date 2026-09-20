@@ -182,10 +182,10 @@ def benchmark_origins(n: int):
     floor = max(FOUNDATION_CONTEXT, XGB_LAGS + MAX_H + 128)
     while o >= floor:
         origins.append(o)
-        o -= MAX_H
+        o -= 21
     origins = sorted(origins)
-    if len(origins) < 5:
-        raise RuntimeError(f"Too few non-overlapping origins: {len(origins)}")
+    if len(origins) < 20:
+        raise RuntimeError(f"Too few dense walk-forward origins: {len(origins)}")
     return origins
 
 
