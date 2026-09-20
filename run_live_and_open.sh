@@ -2,6 +2,7 @@
 set -e
 
 cd ~/downloads/gold18-frontier-benchmark
+git pull --ff-only
 
 echo "Starting Gold18 forecast..."
 gh workflow run "Gold18 Live XGBoost Forecast"
