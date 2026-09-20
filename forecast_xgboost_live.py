@@ -99,12 +99,54 @@ def svg_chart(hist_prices, current_price, q10, q50, q90, horizon_label):
     '''
 
 
+
+def gregorian_to_jalali(gy, gm, gd):
+    g_d_m = [0,31,59,90,120,151,181,212,243,273,304,334]
+    if gy > 1600:
+        jy = 979
+        gy -= 1600
+    else:
+        jy = 0
+        gy -= 621
+    gy2 = gy + 1 if gm > 2 else gy
+    days = (
+        365 * gy
+        + (gy2 + 3) // 4
+        - (gy2 + 99) // 100
+        + (gy2 + 399) // 400
+        - 80
+        + gd
+        + g_d_m[gm - 1]
+    )
+    jy += 33 * (days // 12053)
+    days %= 12053
+    jy += 4 * (days // 1461)
+    days %= 1461
+    if days > 365:
+        jy += (days - 1) // 365
+        days = (days - 1) % 365
+    if days < 186:
+        jm = 1 + days // 31
+        jd = 1 + days % 31
+    else:
+        jm = 7 + (days - 186) // 30
+        jd = 1 + (days - 186) % 30
+    return jy, jm, jd
+
+
+def jalali_date_string(gregorian_iso):
+    gy, gm, gd = map(int, gregorian_iso.split("-"))
+    jy, jm, jd = gregorian_to_jalali(gy, gm, gd)
+    return f"{jy:04d}/{jm:02d}/{jd:02d}"
+
+
 market, meta = load_market_data(refresh=True)
 load_xgboost()
 
 origin = len(market)
 current = float(market.price_toman.iloc[-1])
 data_date = str(market.date.iloc[-1].date())
+jalali_date = jalali_date_string(data_date)
 
 rows = []
 for h, label in HORIZONS.items():
@@ -158,7 +200,7 @@ html = f'''<!doctype html>
 <style>
 *{{box-sizing:border-box}}body{{margin:0;background:#f3f3f3;color:#171717;font-family:Tahoma,Arial,sans-serif;line-height:1.8}}.wrap{{max-width:780px;margin:auto;padding:14px}}.hero{{background:#111;color:#fff;border-radius:22px;padding:22px;margin-bottom:14px}}.hero .small{{font-size:12px;opacity:.72}}.hero h1{{font-size:22px;margin:6px 0 18px}}.current-label{{font-size:13px;opacity:.72}}.price{{font-size:34px;font-weight:900;direction:ltr;text-align:right}}.date{{font-size:12px;opacity:.68;margin-top:6px}}.summary,.help,.warning,details{{background:#fff;border-radius:18px;padding:18px;margin-bottom:14px}}.summary h2,.help h2,.warning h2{{font-size:18px;margin:0 0 10px}}.summary p,.help p,.warning p{{font-size:13px;margin:7px 0}}.direction{{background:#f1f1f1;border-radius:12px;padding:11px;margin-top:10px;font-weight:700}}.help{{background:#fff8df}}.card{{background:#fff;border-radius:20px;padding:18px;margin-bottom:14px;box-shadow:0 2px 10px #0000000a}}.period{{font-size:19px;font-weight:900}}.main-label{{font-size:13px;color:#777;margin-top:10px}}.main-price{{font-size:28px;font-weight:900}}.change{{font-size:13px;color:#555;margin:5px 0 16px}}.three{{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}}.scenario{{background:#f5f5f5;border-radius:13px;padding:10px 5px;text-align:center}}.scenario.main{{background:#e8f1eb}}.scenario span{{display:block;font-size:11px;color:#666}}.scenario strong{{display:block;font-size:12px;margin-top:5px}}.scenario em{{display:block;font-size:10px;color:#777;font-style:normal;margin-top:5px}}.plain-explain{{margin-top:15px;background:#f7f7f7;padding:12px;border-radius:12px;font-size:13px}}.chart-title{{font-size:16px;font-weight:900;margin-top:20px;margin-bottom:8px}}.chart-wrap{{width:100%;overflow:hidden;border:1px solid #ededed;border-radius:15px;background:#fff}}.scenario-svg{{width:100%;height:auto;display:block}}.chart-help{{margin-top:10px;background:#f4f7fa;border-radius:12px;padding:12px;font-size:12px}}.chart-warning{{margin-top:8px;background:#fff8df;border-radius:12px;padding:11px;font-size:11px;color:#555}}.important{{background:#f2f2f2;border-radius:12px;padding:11px;font-weight:700}}details{{font-size:12px}}summary{{font-weight:800;cursor:pointer}}.footer{{font-size:10px;color:#888;text-align:center;padding:22px 5px}}@media(max-width:430px){{.price{{font-size:29px}}.three{{gap:5px}}.scenario strong{{font-size:10px}}}}
 </style></head><body><div class="wrap">
-<header class="hero"><div class="small">پیش‌بینی آماری قیمت طلای ۱۸ عیار</div><h1>وضعیت احتمالی قیمت طلا در ماه‌های آینده</h1><div class="current-label">قیمت فعلی مورد استفاده مدل</div><div class="price">{fmt_toman(current)}</div><div class="date">آخرین روز داده‌ای که مدل دیده است: {fa_num(data_date)}</div></header>
+<header class="hero"><div class="small">پیش‌بینی آماری قیمت طلای ۱۸ عیار</div><h1>وضعیت احتمالی قیمت طلا در ماه‌های آینده</h1><div class="current-label">قیمت فعلی مورد استفاده مدل</div><div class="price">{fmt_toman(current)}</div><div class="date">آخرین روز داده‌ای که مدل دیده است: {fa_num(data_date)} میلادی | {fa_num(jalali_date)} شمسی</div></header>
 <section class="summary"><h2>خلاصه خیلی ساده</h2><p>این برنامه قیمت طلای ۱۸ عیار، دلار و طلای جهانی را بررسی می‌کند و با استفاده از رفتار گذشته بازار، قیمت احتمالی آینده را برآورد می‌کند.</p><div class="direction">در هر سه بازه زمانی، پیش‌بینی اصلی فعلی مدل بالاتر از قیمت امروز است.</div><p>عدد <b>«پیش‌بینی اصلی»</b> مهم‌ترین عدد مدل برای پایان آن بازه زمانی است.</p></section>
 <section class="help"><h2>این سه عدد یعنی چه؟</h2><p><b>برآورد پایین:</b> اگر بازار ضعیف‌تر از انتظار مدل حرکت کند.</p><p><b>پیش‌بینی اصلی:</b> عدد مرکزی و مهم‌ترین پیش‌بینی مدل.</p><p><b>برآورد بالا:</b> اگر بازار قوی‌تر از انتظار مدل حرکت کند.</p><p>این اعداد تضمین نمی‌کنند که قیمت حتماً بین برآورد پایین و بالا بماند.</p></section>
 {''.join(cards)}
