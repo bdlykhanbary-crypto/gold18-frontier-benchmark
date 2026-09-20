@@ -139,17 +139,35 @@ def load_chronos():
 
 
 def forecast_moirai(gold_context, usd_context, xau_context, horizon):
-    # Official Moirai-2 past_feat_dynamic_real input; gold remains the single target.
+    # Moirai-2 official forward path for past-only multivariate covariates.
+    # We intentionally bypass the repository's convenience predict() wrapper because
+    # its current padding helper hard-codes width=1 and fails for >1 past covariate.
+    import torch
+
+    gold = np.asarray(gold_context, dtype=np.float32)
     past_cov = np.column_stack([
         np.asarray(usd_context, dtype=np.float32),
         np.asarray(xau_context, dtype=np.float32),
-    ])
-    pred = np.asarray(
-        _STATE["model"].predict(
-            [np.asarray(gold_context, dtype=np.float32)],
-            past_feat_dynamic_real=[past_cov],
+    ]).astype(np.float32, copy=False)
+
+    if gold.shape[0] != FOUNDATION_CONTEXT or past_cov.shape != (FOUNDATION_CONTEXT, 2):
+        raise RuntimeError(
+            f"Moirai-2 context shape mismatch: gold={gold.shape}, covariates={past_cov.shape}; "
+            f"expected ({FOUNDATION_CONTEXT},) and ({FOUNDATION_CONTEXT}, 2)"
         )
-    )
+
+    past_target = torch.from_numpy(gold.reshape(1, FOUNDATION_CONTEXT, 1))
+    past_cov_t = torch.from_numpy(past_cov.reshape(1, FOUNDATION_CONTEXT, 2))
+
+    with torch.no_grad():
+        pred = _STATE["model"](
+            past_target=past_target,
+            past_observed_target=torch.ones_like(past_target, dtype=torch.bool),
+            past_is_pad=torch.zeros((1, FOUNDATION_CONTEXT), dtype=torch.bool),
+            past_feat_dynamic_real=past_cov_t,
+            past_observed_feat_dynamic_real=torch.ones_like(past_cov_t, dtype=torch.bool),
+        ).detach().cpu().numpy()
+
     q = pred[0]
     levels = list(map(float, _STATE["model"].module.quantile_levels))
     i10, i50, i90 = levels.index(0.1), levels.index(0.5), levels.index(0.9)
