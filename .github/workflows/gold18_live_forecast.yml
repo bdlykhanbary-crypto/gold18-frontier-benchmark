@@ -33,5 +33,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: gold18-live-forecast
-          path: latest_xgboost_forecast.csv
+          path: |
+            latest_xgboost_forecast.csv
+            gold18_forecast_report.html
           retention-days: 30
