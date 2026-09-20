@@ -71,9 +71,9 @@ def tgju_params(n=5000, n_columns=8):
     return p
 
 
-def fetch_tgju_gold() -> pd.DataFrame:
+def fetch_tgju_ohlc(slug: str) -> pd.DataFrame:
     r = requests.get(
-        TGJU_URL.format(slug="geram18"),
+        TGJU_URL.format(slug=slug),
         params=tgju_params(),
         headers=HEADERS,
         timeout=35,
@@ -82,18 +82,12 @@ def fetch_tgju_gold() -> pd.DataFrame:
     payload = r.json()
     rows = payload.get("data", [])
     if not rows:
-        raise RuntimeError("TGJU returned no rows")
+        raise RuntimeError(f"TGJU returned no rows for {slug}")
     df = pd.DataFrame(
         [x[:8] for x in rows],
         columns=[
-            "open",
-            "low",
-            "high",
-            "close",
-            "change_amount",
-            "change_percent",
-            "gregorian_date",
-            "jalali_date",
+            "open", "low", "high", "close",
+            "change_amount", "change_percent", "gregorian_date", "jalali_date",
         ],
     )
     for c in ["open", "low", "high", "close"]:
@@ -109,27 +103,77 @@ def fetch_tgju_gold() -> pd.DataFrame:
     )
 
 
-def load_gold(refresh=True):
+def load_market_data(refresh=True):
+    """Load Gold18 target + USD/IRR + XAUUSD past-only covariates.
+
+    Alignment is causal: for each gold observation date, merge_asof(direction='backward')
+    uses only the latest USD/XAU close known on or before that date. No future covariates
+    are used anywhere in the benchmark.
+    """
     local = pd.read_csv(DATA_PATH)
     local["date"] = pd.to_datetime(local["date"])
     local = local[["date", "open", "low", "high", "close"]].copy()
-    source = "bundled verified history"
-    note = None
+
+    source = {"gold": "bundled verified history", "usd": None, "xau": None}
+    notes = []
+
     if refresh:
         try:
-            live = fetch_tgju_gold()
-            # Guard against a partial/broken live response.
+            live = fetch_tgju_ohlc("geram18")
             if len(live) >= int(0.95 * len(local)) and live["date"].max() >= local["date"].max():
                 local = live
-                source = "TGJU live history"
+                source["gold"] = "TGJU live geram18"
             else:
-                note = f"TGJU response rejected by sanity check: rows={len(live)}, last={live['date'].max()}"
+                notes.append(
+                    f"gold live response rejected: rows={len(live)}, last={live['date'].max()}"
+                )
         except Exception as e:
-            note = f"TGJU refresh failed: {type(e).__name__}: {e}"
+            notes.append(f"gold refresh failed: {type(e).__name__}: {e}")
+
+    # For the multivariate benchmark factors are mandatory. We do not silently fall back
+    # to a gold-only run, because that would invalidate the comparison requested by the user.
+    usd = fetch_tgju_ohlc("price_dollar_rl")
+    xau = fetch_tgju_ohlc("ons")
+    source["usd"] = "TGJU price_dollar_rl"
+    source["xau"] = "TGJU ons"
+
     gold = local.sort_values("date").drop_duplicates("date").reset_index(drop=True)
-    gold["price_toman"] = gold["close"].astype(float) / 10.0
-    gold["log_price"] = np.log(gold["price_toman"])
-    return gold, source, note
+    gold = gold[["date", "close"]].rename(columns={"close": "gold_close_irr"})
+    usd = usd[["date", "close"]].rename(columns={"close": "usd_close_irr"})
+    xau = xau[["date", "close"]].rename(columns={"close": "xau_close_usd"})
+
+    aligned = pd.merge_asof(
+        gold.sort_values("date"), usd.sort_values("date"), on="date", direction="backward"
+    )
+    aligned = pd.merge_asof(
+        aligned.sort_values("date"), xau.sort_values("date"), on="date", direction="backward"
+    )
+    aligned = aligned.dropna(subset=["gold_close_irr", "usd_close_irr", "xau_close_usd"])
+    aligned = aligned[(aligned[["gold_close_irr", "usd_close_irr", "xau_close_usd"]] > 0).all(axis=1)]
+    aligned = aligned.reset_index(drop=True)
+
+    aligned["price_toman"] = aligned["gold_close_irr"].astype(float) / 10.0
+    aligned["log_gold"] = np.log(aligned["price_toman"])
+    aligned["log_usd"] = np.log(aligned["usd_close_irr"].astype(float))
+    aligned["log_xau"] = np.log(aligned["xau_close_usd"].astype(float))
+    # Compatibility with existing scoring helpers.
+    aligned["log_price"] = aligned["log_gold"]
+
+    meta = {
+        "source": source,
+        "notes": notes,
+        "gold_rows_raw": int(len(gold)),
+        "usd_rows_raw": int(len(usd)),
+        "xau_rows_raw": int(len(xau)),
+        "aligned_rows": int(len(aligned)),
+        "aligned_from": str(aligned.date.min().date()),
+        "aligned_to": str(aligned.date.max().date()),
+        "usd_last_raw": str(usd.date.max().date()),
+        "xau_last_raw": str(xau.date.max().date()),
+        "alignment": "gold calendar; backward as-of join for USD/XAU (causal)",
+        "inputs": ["Gold18 log price target", "USD/IRR log close past covariate", "XAU/USD log close past covariate"],
+    }
+    return aligned, meta
 
 
 def benchmark_origins(n: int):
@@ -184,15 +228,13 @@ def summarize_results(df):
                     pinball(r.actual_log, r.q10_log, 0.1)
                     + pinball(r.actual_log, r.q50_log, 0.5)
                     + pinball(r.actual_log, r.q90_log, 0.9)
-                )
-                / 3
+                ) / 3
                 for r in g.itertuples()
             ]
         )
         mape = np.mean(np.abs(g["q50_price"] / g["actual_price"] - 1)) * 100
         cov = np.mean(
-            (g["actual_price"] >= g["q10_price"])
-            & (g["actual_price"] <= g["q90_price"])
+            (g["actual_price"] >= g["q10_price"]) & (g["actual_price"] <= g["q90_price"])
         ) * 100
         diracc = np.mean(
             np.sign(g["q50_price"] / g["current_price"] - 1)

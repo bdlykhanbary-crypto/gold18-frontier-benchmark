@@ -1,0 +1,24 @@
+{
+  "model": "TimesFM-3",
+  "slug": "timesfm",
+  "status": "SUCCESS",
+  "python": "3.11.16 (main, Aug 13 2026, 02:46:14) [GCC 13.3.0]",
+  "platform": "Linux-6.17.0-1022-azure-x86_64-with-glibc2.39",
+  "started_utc": "2026-09-20T16:42:42.804586+00:00",
+  "data_source": "TGJU live history",
+  "data_note": null,
+  "rows": 3507,
+  "data_from": "2013-07-22",
+  "data_to": "2026-09-19",
+  "last_close_toman": 23878100.0,
+  "backtest_origins": 11,
+  "runtime": {
+    "checkpoint": "google/timesfm-3.0-pytorch",
+    "torch": "2.14.0+cpu",
+    "timesfm": "3.0.2",
+    "device": "cpu"
+  },
+  "record_count": 33,
+  "elapsed_seconds": 17.4,
+  "finished_utc": "2026-09-20T16:43:00.202014+00:00"
+}

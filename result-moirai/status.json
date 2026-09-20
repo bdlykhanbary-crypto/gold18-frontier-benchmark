@@ -1,0 +1,24 @@
+{
+  "model": "Moirai-2.0",
+  "slug": "moirai",
+  "status": "SUCCESS",
+  "python": "3.11.16 (main, Aug 13 2026, 02:46:14) [GCC 13.3.0]",
+  "platform": "Linux-6.17.0-1022-azure-x86_64-with-glibc2.39",
+  "started_utc": "2026-09-20T16:44:52.850947+00:00",
+  "data_source": "TGJU live history",
+  "data_note": null,
+  "rows": 3507,
+  "data_from": "2013-07-22",
+  "data_to": "2026-09-19",
+  "last_close_toman": 23878100.0,
+  "backtest_origins": 11,
+  "runtime": {
+    "checkpoint": "Salesforce/moirai-2.0-R-small",
+    "torch": "2.4.1+cu121",
+    "uni2ts": "2.0.0",
+    "device": "cpu"
+  },
+  "record_count": 33,
+  "elapsed_seconds": 11.85,
+  "finished_utc": "2026-09-20T16:45:04.703136+00:00"
+}

@@ -1,27 +1,24 @@
-# اجرای Benchmark طلای ۱۸ عیار با GitHub Actions
+# Benchmark چندمتغیره طلای ۱۸ عیار — v2
 
-این بسته چهار مدل را **جداگانه** اجرا می‌کند و هیچ ensemble یا مدل اختصاصی نمی‌سازد:
+این نسخه همان چهار مدل منتشرشده را **جداگانه** اجرا می‌کند و هیچ ensemble یا مدل اختصاصی نمی‌سازد:
 
-1. Google TimesFM 3.0 — checkpoint رسمی `google/timesfm-3.0-pytorch`
-2. Amazon Chronos-2 — checkpoint رسمی `amazon/chronos-2`
-3. Salesforce Moirai 2.0 — checkpoint رسمی `Salesforce/moirai-2.0-R-small`
-4. XGBoost Quantile Regression — benchmark/challenger
+1. Google TimesFM 3.0 — `google/timesfm-3.0-pytorch`
+2. Amazon Chronos-2 — `amazon/chronos-2`
+3. Salesforce Moirai 2.0 — `Salesforce/moirai-2.0-R-small`
+4. XGBoost Quantile Regression — challenger
 
-## نکته مهم
-برای رایگان ماندن GitHub Actions، repository را **Public** بسازید. Runner استاندارد public رایگان است. مدل‌ها روی CPU اجرا می‌شوند، پس ممکن است چند ساعت طول بکشد. گوشی لازم نیست در تمام مدت روشن یا متصل بماند.
+## ورودی‌ها
+- Target: log price طلای ۱۸ عیار
+- Past-only covariate 1: log USD/IRR (دلار آزاد TGJU، `price_dollar_rl`)
+- Past-only covariate 2: log XAU/USD (اونس جهانی TGJU، `ons`)
 
-## نتیجه
-در پایان workflow یک artifact به نام:
+هم‌ترازی فقط با backward as-of روی تاریخ طلای ۱۸ عیار انجام می‌شود؛ بنابراین برای هر تاریخ فقط آخرین دلار/اونس موجود در همان تاریخ یا قبل از آن استفاده می‌شود و هیچ future covariate به مدل داده نمی‌شود. اگر دلار یا اونس TGJU قابل دریافت نباشد، benchmark چندمتغیره عمداً FAIL می‌شود و به Gold-only برنمی‌گردد.
 
-`gold18-frontier-final-results`
+## بک‌تست
+پنجره‌های ۱۲ماهه غیرهمپوشان، افق‌های 3M/6M/12M، معیار اصلی mean pinball loss برای Q10/Q50/Q90. برنده فقط مدلی است که هر سه افق را کامل کند.
 
-ساخته می‌شود که شامل `report.html`، leaderboardها، forecastهای فعلی، رکوردهای walk-forward و ZIP نهایی است.
+## XGBoost
+همان objective رسمی `reg:quantileerror` استفاده می‌شود. ورودی فقط 63 lag خام بازده برای Gold18/USD/XAU است؛ هیچ اندیکاتور تکنیکال یا feature اختصاصی اضافه نشده است.
 
-## قانون انتخاب
-برنده فقط مدلی است که هر سه افق 3M/6M/12M را کامل کند و کمترین میانگین `pinball loss` را داشته باشد. اگر یک مدل رسمی خطا بدهد، جای آن مدل دست‌ساز قرار داده نمی‌شود؛ خطا در گزارش ثبت می‌شود.
-
-## داده
-ابتدا تلاش می‌شود تاریخچه TGJU تازه شود. اگر دسترسی TGJU ممکن نباشد، فایل معتبر همراه بسته (`data/gold18_ohlc.csv`) استفاده می‌شود.
-
-## مجوز TimesFM-3
-وزن‌های pretrained نسخه 3 تحت مجوز non-commercial/non-production منتشر شده‌اند؛ این بسته برای benchmark پژوهشی طراحی شده است.
+## مجوز
+وزن‌های TimesFM-3 برای non-commercial/non-production منتشر شده‌اند؛ این benchmark پژوهشی است.

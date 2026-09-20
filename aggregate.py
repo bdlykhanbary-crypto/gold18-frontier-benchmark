@@ -90,14 +90,14 @@ report = f"""<!doctype html><html><head><meta charset='utf-8'><meta name='viewpo
 <title>Gold 18K Frontier Benchmark</title><style>
 body{{font-family:Arial,Tahoma,sans-serif;max-width:1200px;margin:20px auto;padding:0 12px;line-height:1.55;background:#f6f7f9;color:#111}}
 .card{{background:white;border:1px solid #ddd;border-radius:12px;padding:14px;margin:14px 0;overflow:auto}}table{{border-collapse:collapse;width:100%;font-size:13px}}th,td{{border:1px solid #ddd;padding:6px;text-align:center}}th{{background:#f0f2f5}}.winner{{font-size:22px;font-weight:bold}}</style></head><body>
-<h1>Iran 18K Gold — Frontier Model Benchmark</h1>
+<h1>Iran 18K Gold — Multivariate Frontier Benchmark v2</h1>
 <div class='card'><div class='winner'>Winner by pre-declared mean pinball rule: {html.escape(str(winner))}</div>
 <p>No custom ensemble. Models are ranked separately. Only models completing all 3M/6M/12M horizons are eligible to win.</p></div>
 <div class='card'><h2>Model execution status</h2>{status_html}</div>
 <div class='card'><h2>Overall leaderboard</h2>{overall_html}</div>
 <div class='card'><h2>Leaderboard by horizon</h2>{leader_html}</div>
 <div class='card'><h2>Current forecasts</h2>{forecast_html}</div>
-<div class='card'><h2>Method</h2><p>Foundation models: official pretrained checkpoints, zero-shot, 512-point log-price context, non-overlapping 252-session walk-forward test windows. Primary metric: mean pinball loss over Q10/Q50/Q90 on log price. XGBoost is a separate quantile-regression challenger, not blended with foundation models.</p></div>
+<div class='card'><h2>Method</h2><p>Foundation models: official pretrained checkpoints, zero-shot, 512-point Gold18 log-price target with USD/IRR and XAU/USD as past-only covariates, and non-overlapping 252-session walk-forward test windows. Factor alignment is causal (backward as-of on the Gold18 calendar); no future USD/XAU values are supplied. Primary metric: mean pinball loss over Q10/Q50/Q90 on Gold18 log price. XGBoost is a separate official quantile-regression challenger using 63 raw return lags from the same three series; models are never blended.</p></div>
 </body></html>"""
 (OUT / "report.html").write_text(report, encoding="utf-8")
 

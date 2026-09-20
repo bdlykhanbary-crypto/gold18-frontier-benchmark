@@ -1,4 +1,4 @@
-name: Gold18 Frontier Benchmark
+name: Gold18 Multivariate Frontier Benchmark v2
 
 on:
   workflow_dispatch:
