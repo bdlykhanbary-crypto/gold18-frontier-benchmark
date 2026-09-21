@@ -4,6 +4,7 @@ import pandas as pd
 
 from benchmark_common import HORIZONS, load_market_data
 from run_model import load_xgboost, forecast_xgb
+from live_overlay import overlay_live_snapshot
 
 
 def fa_num(s):
@@ -139,12 +140,18 @@ def jalali_date_string(gregorian_iso):
 
 
 market, meta = load_market_data(refresh=True)
+market, meta = overlay_live_snapshot(market, meta)
 load_xgboost()
 
 origin = len(market)
 current = float(market.price_toman.iloc[-1])
 data_date = str(market.date.iloc[-1].date())
 jalali_date = jalali_date_string(data_date)
+live_meta = meta.get("live_snapshot", {})
+live_audit = (
+    f"Gold18: {fa_num(f'{float(live_meta.get(chr(103)+chr(111)+chr(108)+chr(100)+chr(49)+chr(56)+chr(95)+chr(116)+chr(111)+chr(109)+chr(97)+chr(110), current)):,.0f}')} تومان"
+    if live_meta else "داده لحظه‌ای تأیید نشد"
+)
 
 rows = []
 for h, label in HORIZONS.items():
@@ -225,7 +232,7 @@ html = f'''<!doctype html>
 }}
 .chart-help{{margin-top:10px;background:#f4f7fa;border-radius:12px;padding:12px;font-size:12px}}.chart-warning{{margin-top:8px;background:#fff8df;border-radius:12px;padding:11px;font-size:11px;color:#555}}.important{{background:#f2f2f2;border-radius:12px;padding:11px;font-weight:700}}details{{font-size:12px}}summary{{font-weight:800;cursor:pointer}}.footer{{font-size:10px;color:#888;text-align:center;padding:22px 5px}}@media(max-width:430px){{.price{{font-size:29px}}.three{{gap:5px}}.scenario strong{{font-size:10px}}}}
 </style></head><body><div class="wrap">
-<header class="hero"><div class="small">پیش‌بینی آماری قیمت طلای ۱۸ عیار</div><h1>وضعیت احتمالی قیمت طلا در ماه‌های آینده</h1><div class="current-label">قیمت فعلی مورد استفاده مدل</div><div class="price">{fmt_toman(current)}</div><div class="date">آخرین روز داده‌ای که مدل دیده است: {fa_num(data_date)} میلادی | {fa_num(jalali_date)} شمسی</div></header>
+<header class="hero"><div class="small">پیش‌بینی آماری قیمت طلای ۱۸ عیار</div><h1>وضعیت احتمالی قیمت طلا در ماه‌های آینده</h1><div class="current-label">قیمت لحظه‌ای مورد استفاده مدل</div><div class="price">{fmt_toman(current)}</div><div class="date">تاریخ داده لحظه‌ای مورد استفاده مدل: {fa_num(data_date)} میلادی | {fa_num(jalali_date)} شمسی</div><div class="date">{live_audit}</div></header>
 <section class="summary"><h2>خلاصه خیلی ساده</h2><p>این برنامه قیمت طلای ۱۸ عیار، دلار و طلای جهانی را بررسی می‌کند و با استفاده از رفتار گذشته بازار، قیمت احتمالی آینده را برآورد می‌کند.</p><div class="direction">در هر سه بازه زمانی، پیش‌بینی اصلی فعلی مدل بالاتر از قیمت امروز است.</div><p>عدد <b>«پیش‌بینی اصلی»</b> مهم‌ترین عدد مدل برای پایان آن بازه زمانی است.</p></section>
 <section class="help"><h2>این سه عدد یعنی چه؟</h2><p><b>برآورد پایین:</b> اگر بازار ضعیف‌تر از انتظار مدل حرکت کند.</p><p><b>پیش‌بینی اصلی:</b> عدد مرکزی و مهم‌ترین پیش‌بینی مدل.</p><p><b>برآورد بالا:</b> اگر بازار قوی‌تر از انتظار مدل حرکت کند.</p><p>این اعداد تضمین نمی‌کنند که قیمت حتماً بین برآورد پایین و بالا بماند.</p></section>
 {''.join(cards)}
