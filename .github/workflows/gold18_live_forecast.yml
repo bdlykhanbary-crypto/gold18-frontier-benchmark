@@ -44,6 +44,16 @@ jobs:
             git push
           fi
 
+      - name: Save latest HTML permanently
+        run: |
+          git config user.name "Gold4Cast Bot"
+          git config user.email "gold4cast-bot@users.noreply.github.com"
+          git add -f gold18_forecast_report.html latest_xgboost_forecast.csv
+          if ! git diff --cached --quiet; then
+            git commit -m "Update latest Gold4Cast report [skip ci]"
+            git push
+          fi
+
       - name: Upload forecast
         uses: actions/upload-artifact@v4
         with:
